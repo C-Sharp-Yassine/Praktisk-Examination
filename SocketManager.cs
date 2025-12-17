@@ -1,61 +1,78 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
+using System.Text.Json;
 using System.Threading.Tasks;
 using SocketIOClient;
 
-namespace ChattApp
+namespace ChattApp2
 {
+
     internal class SocketManager
     {
         public static string Username { get; set; } = "Okänd";
         private static SocketIOClient.SocketIO _client;
-        private static readonly string path = "/sys25d";
-        private static readonly string EventName = "Yassine88_message";
-        public static List<string> Message = new List<string>();
+        private static readonly string Path = "/sys25d";
+        private static readonly string MessageEvent = "yassine_message";
+        private static readonly string JoinEvent = "user_joined";
+        private static readonly string LeaveEvent = "user_left";
+
+        public static List<string> MessageHistory = new();
 
         public static async Task ConnectAsync()
         {
-
-            _client = new SocketIOClient.SocketIO("wss://api.leetcode.se", new SocketIOOptions
+            _client = new SocketIOClient.SocketIO("wss://api.leetcode.se", new SocketIOOptions{ Path = Path });
+            
+            _client.On(MessageEvent, response =>
             {
-                Path = path
+                var data = response.GetValue<Message>();
+
+                Console.ForegroundColor = ConsoleColor.Green;
+                Console.WriteLine($"{data.Time} {data.Sender}: {data.Text}");
+                Console.ResetColor();
             });
 
-            _client.On(EventName, response =>
+            _client.On(JoinEvent, response =>
             {
-                string receiveMessage = response.GetValue<string>();
-                Message.Add(receiveMessage);
-
-                var time = DateTime.Now.ToString("HH:mm");
-                Console.WriteLine($"{time} [Server] {receiveMessage}");
+                string joineUser = response.GetValue<string>();
+                Console.ForegroundColor = ConsoleColor.Yellow;
+                Console.WriteLine($"*** {joineUser} har anslutit till chatten ***");
+                Console.ResetColor();
             });
 
-            _client.OnConnected += async (sender, args) =>
+            _client.OnConnected += (sender, args) =>
             {
-                Console.WriteLine("Connected");
-                await Task.CompletedTask;
+                Console.WriteLine("Connected till servern!");
             };
-            _client.OnDisconnected += async (sender, args) =>
+
+            _client.OnDisconnected += (sender, args) =>
             {
-                Console.WriteLine("Disconnected");
-                await Task.CompletedTask;
+                Console.WriteLine("Disconnected från servern!");
             };
 
             await _client.ConnectAsync();
-            await Task.Delay(200);
-            Console.WriteLine($"Connected: {_client.Connected}");
-
+            await Task.Delay(350);
+            await _client.EmitAsync(JoinEvent, Username);
         }
 
-        public static async Task SendMessageAsync(string message)
+        public static async Task SendMessageAsync(string text)
         {
-            if (string.IsNullOrWhiteSpace(message))
+            if (string.IsNullOrWhiteSpace(text))
                 return;
-            await _client.EmitAsync(EventName, message);
+            var message = new Message
+            {
+                Sender = Username,
+                Text = text,
+                Time = DateTime.UtcNow.ToString("yyyy-MM-dd HH:mm:ss")
+            };
+            await _client.EmitAsync(MessageEvent, message);
         }
 
         public static async Task DisconnectAsync()
+                
         {
+            
+            await _client.EmitAsync(LeaveEvent, Username);
+            await Task.Delay(350);
             await _client.DisconnectAsync();
             Console.WriteLine("Du har lämnat chatten.");
         }
