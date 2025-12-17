@@ -1,7 +1,7 @@
 # Praktisk-Examination
 ChatApp med Socket.IO
 
-## Hur man kör programmet CahtApp
+## Hur man kör programmet ChattApp
 
 1. Öppna projektet i Visual studio eller JetBrains.
 2. Kontrollera att paketet SocketIOClient är installerat.
